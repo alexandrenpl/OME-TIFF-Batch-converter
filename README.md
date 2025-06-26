@@ -5,14 +5,15 @@ A GUI application for batch conversion of SerialEM montages (.mrc files) to OME-
 ## What it does
 
 This tool processes SerialEM montage files (.mrc + .mdoc) and converts them to:
-- **OME-TIFF files** with correct pixel size calibration and pyramidal structure
+- **OME-TIFF files** with correct pixel size calibration and pyramidal structure (always created)
 - **HDF5 files** (optional) for images >2G pixels, compatible with ImageJ BigDataViewer
-- **Reduced resolution TIFF files** (alternative to HDF5) for large images
+- **Reduced resolution TIFF files** (optional) for large images - can be created independently of HDF5
 
 The processing includes:
 1. Montage blending using IMOD tools (extractpieces + blendmont)
-2. Conversion to calibrated OME-TIFF with pyramid levels
-3. Optional HDF5 creation for large images or reduced resolution alternatives
+2. Conversion to calibrated OME-TIFF with pyramid levels (always created)
+3. Optional HDF5 creation for large images (>2G pixels)
+4. Optional reduced resolution TIFF creation for large images (independent of HDF5)
 
 ## Prerequisites
 
@@ -87,8 +88,10 @@ This will check:
 1. **Select Folder**: Choose folder containing .mrc files
 2. **Options**:
    - ✅ **Recursive**: Search subfolders for .mrc files
-   - ✅ **Create H5 for large images**: When checked, creates HDF5 files for images >2G pixels
-   - ❌ **Create H5 unchecked**: Creates reduced resolution TIFF instead
+   - **For large images (>2G pixels):**
+     - ✅ **Create H5 file**: Creates HDF5 files compatible with BigDataViewer
+     - ✅ **Create reduced resolution TIFF**: Creates downsampled TIFF files
+   - **Note**: Both options are independent - you can select none, one, or both
 
 3. **Processing**: Click "Start Batch Processing"
 
@@ -99,9 +102,15 @@ For each input file `image.mrc`, the tool creates:
 **Always created:**
 - `image.ome.tif` - Original resolution OME-TIFF with calibration
 
-**For large images (>2G pixels):**
-- `image.h5` + `image.xml` - HDF5 format for BigDataViewer (if H5 option checked)
-- `image_reduced.ome.tif` - Reduced resolution TIFF (if H5 option unchecked)
+**For large images (>2G pixels), optional files:**
+- `image.h5` + `image.xml` - HDF5 format for BigDataViewer (if "Create H5 file" is checked)
+- `image_reduced.ome.tif` - Reduced resolution TIFF (if "Create reduced resolution TIFF" is checked)
+
+**Note**: For large images, you can choose to create:
+- Only HDF5 files
+- Only reduced resolution TIFF
+- Both HDF5 and reduced TIFF
+- Neither (only original OME-TIFF)
 
 ### Opening Results
 

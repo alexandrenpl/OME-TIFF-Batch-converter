@@ -308,7 +308,8 @@ class OMEBatchConverterGUI:
         self.root.geometry("700x550")
         self.folder_path = tk.StringVar()
         self.recursive = tk.BooleanVar(value=True)
-        self.create_h5 = tk.BooleanVar(value=False)  # New checkbox for H5 creation
+        self.create_h5 = tk.BooleanVar(value=False)  # Checkbox for H5 creation
+        self.create_reduced_tiff = tk.BooleanVar(value=False)  # New checkbox for reduced TIFF creation
         self.create_widgets()
 
     def create_widgets(self):
@@ -326,15 +327,23 @@ class OMEBatchConverterGUI:
         options_frame = ttk.Frame(self.root)
         options_frame.pack(fill=tk.X, padx=10, pady=5)
 
-        # H5 creation checkbox
-        ttk.Checkbutton(options_frame, text="Create H5 for large images (>2G pixels)", 
-                       variable=self.create_h5).pack(anchor=tk.W)
+        # Additional options label
+        ttk.Label(options_frame, text="Additional options:", 
+                 font=('TkDefaultFont', 9, 'bold')).pack(anchor=tk.W, pady=(0, 5))
+
+        # Reduced TIFF creation checkbox (for images >1.5G pixels)
+        ttk.Checkbutton(options_frame, text="Create reduced resolution TIFF (for images >1.5G pixels)", 
+                       variable=self.create_reduced_tiff).pack(anchor=tk.W, padx=20)
+        
+        # H5 creation checkbox (for any image size)
+        ttk.Checkbutton(options_frame, text="Create H5 file (for any image size)", 
+                       variable=self.create_h5).pack(anchor=tk.W, padx=20)
         
         # Informational text
         info_label = ttk.Label(options_frame, 
-                              text="If unchecked, reduced resolution image will be created for files >2G pixels",
+                              text="Note: Original full resolution OME-TIFF is always created",
                               font=('TkDefaultFont', 8), foreground='gray')
-        info_label.pack(anchor=tk.W, padx=20)
+        info_label.pack(anchor=tk.W, padx=20, pady=(5, 0))
 
         # Start button
         self.start_btn = ttk.Button(self.root, text="Start Batch Processing", command=self.start_processing)
@@ -415,14 +424,14 @@ class OMEBatchConverterGUI:
                 print(f"Error: Blended file {cblf} was not created")
                 return False
             
-            # Check image size for >2G pixels
+            # Check image size for different thresholds
             with mrcfile.open(cblf, permissive=True) as mrc:
                 image_data = mrc.data
                 if image_data.ndim == 3:
                     image_data = image_data[0]  # Use first slice if 3D
                 
                 total_pixels = image_data.shape[0] * image_data.shape[1]
-                is_large_image = total_pixels > 2_000_000_000
+                is_large_for_reduced = total_pixels > 1_500_000_000  # 1.5G pixels for reduced TIFF
             
             # Define output paths
             output_tiff = mrc_file.with_suffix('.ome.tif')
@@ -433,21 +442,21 @@ class OMEBatchConverterGUI:
             print(f"Creating original OME-TIFF: {output_tiff}")
             create_ome_bigtiff_pyramid(cblf, output_tiff, mag)
             
-            # Handle large images (>2G pixels)
-            if is_large_image:
-                print(f"Large image detected ({total_pixels:,} pixels > 2G)")
-                
-                if self.create_h5.get():
-                    # Create H5 file
-                    print(f"Creating HDF5: {output_h5}")
-                    create_hdf5_pyramid(cblf, output_h5, mag)
-                    print("H5 file created for large image")
-                else:
-                    # Create reduced resolution TIFF
-                    reduction_factor = calculate_reduction_factor(image_data.shape, 1_000_000_000)
-                    print(f"Creating reduced resolution TIFF with {reduction_factor}x reduction: {output_tiff_reduced}")
-                    create_ome_bigtiff_pyramid(cblf, output_tiff_reduced, mag, reduction_factor=reduction_factor)
-                    print("Reduced resolution TIFF created for large image")
+            # Create reduced resolution TIFF if checkbox is checked AND image > 1.5G pixels
+            if self.create_reduced_tiff.get() and is_large_for_reduced:
+                reduction_factor = calculate_reduction_factor(image_data.shape, 1_000_000_000)
+                print(f"Large image detected ({total_pixels:,} pixels > 1.5G)")
+                print(f"Creating reduced resolution TIFF with {reduction_factor}x reduction: {output_tiff_reduced}")
+                create_ome_bigtiff_pyramid(cblf, output_tiff_reduced, mag, reduction_factor=reduction_factor)
+                print("Reduced resolution TIFF created")
+            elif self.create_reduced_tiff.get() and not is_large_for_reduced:
+                print(f"Image size ({total_pixels:,} pixels) is below 1.5G threshold - no reduced TIFF created")
+            
+            # Create H5 file if checkbox is checked (independent of image size)
+            if self.create_h5.get():
+                print(f"Creating HDF5: {output_h5}")
+                create_hdf5_pyramid(cblf, output_h5, mag)
+                print("H5 file created")
             
             # === CLEANUP TEMPORARY FILES ===
             print("Cleaning temporary files...")
@@ -476,7 +485,8 @@ class OMEBatchConverterGUI:
         
         print(f"Starting batch processing in: {folder}")
         print(f"Recursive search: {self.recursive.get()}")
-        print(f"Create H5 for large images: {self.create_h5.get()}")
+        print(f"Create H5 files: {self.create_h5.get()}")
+        print(f"Create reduced TIFF for images >1.5G pixels: {self.create_reduced_tiff.get()}")
         
         # Find .mrc files
         mrc_files = self.find_mrc_files(folder, self.recursive.get())
