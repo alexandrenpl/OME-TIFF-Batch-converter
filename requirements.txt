@@ -1,0 +1,7 @@
+pyinstaller>=5.0
+tifffile>=2023.7.10
+mrcfile>=1.4.3
+h5py>=3.9.0
+numpy>=1.24.0
+scikit-image>=0.21.0
+ome-types>=0.3.0 
